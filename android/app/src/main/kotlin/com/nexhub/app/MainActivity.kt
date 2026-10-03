@@ -159,8 +159,9 @@ class MainActivity : FlutterFragmentActivity() {
         }
 
         // Method channel: 让源自带 WebView 跟随源「网络覆盖」（hosts/DoH/手动代理）。
-        // 经 AndroidX ProxyController 把源域名导到本地正向代理（DNS 由 DnsResolver
-        // 按源 hosts 解析，绕开 DNS 污染）；API 28 以下不支持，安全回落（不生效）。
+        // 经 AndroidX ProxyController 下发**静态规则**（androidx ProxyConfig 只认
+        // `[scheme=]host[:port]`，不支持 PAC/域名分流；hosts/DoH 的按域解析由
+        // Dart 侧本地正向代理完成）；API 28 以下不支持，安全回落（不生效）。
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "nexhub/webview_proxy"
@@ -178,6 +179,9 @@ class MainActivity : FlutterFragmentActivity() {
                             }
                             val proxyConfig = ProxyConfig.Builder()
                                 .addProxyRule(rule)
+                                // 本机回环不进代理（代理自身/本地服务防回环）。
+                                .addBypassRule("localhost")
+                                .addBypassRule("127.0.0.1")
                                 .build()
                             ProxyController.getInstance().setProxyOverride(
                                 proxyConfig,

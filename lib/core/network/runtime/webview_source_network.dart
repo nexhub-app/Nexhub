@@ -6,10 +6,12 @@
 /// WebView 一侧：起一个本地正向代理，把命中源域名的 WebView 流量经
 /// [DnsResolver] 解析（hosts 优先、回退 DoH、再回退系统），从而绕开 DNS 污染。
 ///
-/// 接线：Android 侧经 `ProxyController.setProxyOverride` + PAC 把源域名导到本地
-/// 代理（API 28+）。Windows 侧 WebView2 不支持运行期 ProxyController，改为
-/// 创建带 `--proxy-server` 启动参数的 WebView2 环境（[WebViewEnvironment]）：
-/// hosts/DoH 模式全量指向本地正向代理（非源域名由代理按系统 DNS 回退），
+/// 接线：Android 侧经 `ProxyController.setProxyOverride` 用**静态全量规则**把
+/// WebView 全部流量导到本地正向代理（API 28+；androidx `ProxyConfig` 只认
+/// `[scheme=]host[:port]` 规则，不支持 PAC/域名分流，hosts/DoH 的按域解析由
+/// 本地代理完成，非源域名由代理按系统 DNS 回退）。Windows 侧 WebView2 不支持
+/// 运行期 ProxyController，改为创建带 `--proxy-server` 启动参数的
+/// WebView2 环境（[WebViewEnvironment]）：hosts/DoH 模式全量指向本地正向代理，
 /// 手动代理模式直指用户代理。不同启动参数必须配不同 `userDataFolder`
 /// （WebView2 共享浏览器进程按 options 匹配，不匹配 → ERROR_INVALID_STATE）。
 /// 本文件只做配置驱动的逻辑，不写死任何站点。
@@ -59,7 +61,6 @@ class WebviewSourceNetwork {
   // 当前生效的源 DNS 配置（供本地代理解析使用）。
   DnsConfig? _dns;
   List<HostsEntry>? _hosts;
-  String? _pacContent;
 
   /// 当前持有跟随的源 id（首个 apply 的源）。
   String? _currentSourceId;
@@ -95,9 +96,12 @@ class WebviewSourceNetwork {
 
     // 手动代理模式：直接让 ProxyController 走该代理，无需本地代理。
     if (!hasCustomDns && manualProxy) {
+      // androidx ProxyConfig 规则格式为 `[scheme=]host[:port]`（裸 host:port 即
+      // HTTP 代理，socks 必须带 scheme= 前缀）。原先发的 'SOCKS h:p' / 'PROXY h:p'
+      // 不是合法规则，被静默忽略 → WebView 直连（手机跟随从未生效的原因之一）。
       final proxyUrl = profile.proxy.protocol == ProxyProtocol.socks5
-          ? 'SOCKS ${profile.proxy.host}:${profile.proxy.port}'
-          : 'PROXY ${profile.proxy.host}:${profile.proxy.port}';
+          ? 'socks5=${profile.proxy.host}:${profile.proxy.port}'
+          : '${profile.proxy.host}:${profile.proxy.port}';
       final ok = await _setProxy(proxyUrl: proxyUrl);
       if (ok) {
         _refCount++;
@@ -123,25 +127,15 @@ class WebviewSourceNetwork {
       return;
     }
 
-    // hosts / DoH 模式：起本地代理 + PAC 把源域名导到本地代理。
+    // hosts / DoH 模式：WebView 全量走本地正向代理（androidx ProxyConfig 不
+    // 支持 PAC/域名分流——此前发 'pac+http://...' 被当非法规则忽略，WebView
+    // 直连系统 DNS 命中污染；改为静态规则后，hosts/DoH 的按域解析由本地代理
+    // 完成，语义与 Windows 全量转发一致）。
     await _ensureStarted();
     _dns = profile.dns;
     _hosts = profile.hosts;
 
-    final hostnames = <String>{};
-    for (final h in profile.hosts) {
-      if (h.enabled && h.host.isNotEmpty) hostnames.add(h.host.toLowerCase());
-    }
-    final site = source.site;
-    if (site.domain.isNotEmpty) hostnames.add(site.domain.toLowerCase());
-    for (final m in site.mirrors) {
-      if (m.domain.isNotEmpty) hostnames.add(m.domain.toLowerCase());
-    }
-    _pacContent = _buildPac(hostnames, _port);
-
-    final ok = await _setProxy(
-      pacUrl: 'pac+http://127.0.0.1:$_port/proxy.pac',
-    );
+    final ok = await _setProxy(proxyUrl: '127.0.0.1:$_port');
     if (ok) {
       _refCount++;
     } else {
@@ -185,7 +179,6 @@ class WebviewSourceNetwork {
     }
     _dns = null;
     _hosts = null;
-    _pacContent = null;
     _currentSourceId = null;
   }
 
@@ -304,18 +297,6 @@ class WebviewSourceNetwork {
   }
 
   Future<void> _onRequest(HttpRequest request) async {
-    // 提供 PAC 脚本（ProxyController 经 http 拉取）。
-    if (request.method == 'GET' &&
-        request.uri.path == '/proxy.pac' &&
-        _pacContent != null) {
-      request.response
-        ..statusCode = 200
-        ..headers.contentType = ContentType('application', 'x-ns-proxy-autoconfig')
-        ..write(_pacContent!);
-      await request.response.close();
-      return;
-    }
-
     if (request.method == 'CONNECT') {
       await _tunnel(request, 443);
     } else {
@@ -483,19 +464,6 @@ class WebviewSourceNetwork {
       },
       cancelOnError: true,
     );
-  }
-
-  // ---- PAC 生成 ----
-
-  String _buildPac(Set<String> hostnames, int port) {
-    final rules = hostnames.map((h) {
-      return "  if (host == '$h' || shExpMatch(host, '*.$h')) "
-          "return 'PROXY 127.0.0.1:$port';";
-    }).join('\n');
-    return 'function FindProxyForURL(url, host) {\n'
-        '$rules\n'
-        "  return 'DIRECT';\n"
-        '}\n';
   }
 
   // ---- 平台通道（Android ProxyController）----
