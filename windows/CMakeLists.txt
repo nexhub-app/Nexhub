@@ -58,12 +58,11 @@ add_subdirectory("runner")
 
 # Bundle the native ECH proxy engine (built by android/rust/build-windows.sh) so
 # that dart:ffi's DynamicLibrary.open("echproxy.dll") resolves it next to the exe.
+# 注意：只能用 install()（与下方其余打包规则一致），不能在此层对 ${BINARY_NAME}
+# 挂 add_custom_command(TARGET ...) —— 该 target 创建于 runner/ 子目录，CMake
+# 要求 POST_BUILD 与目标同目录，否则报 "TARGET was not created in this directory"。
 set(ECHPROXY_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../android/rust/target/x86_64-pc-windows-msvc/release/echproxy.dll")
 if(EXISTS "${ECHPROXY_DLL}")
-  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${ECHPROXY_DLL}" "$<TARGET_FILE_DIR:${BINARY_NAME}>"
-    COMMENT "Bundling echproxy.dll (native ECH proxy engine)")
   install(FILES "${ECHPROXY_DLL}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
     COMPONENT Runtime OPTIONAL)
 endif()
