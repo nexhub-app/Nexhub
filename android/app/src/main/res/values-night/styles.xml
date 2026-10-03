@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <!-- tools:targetApi="p"：windowLayoutInDisplayCutoutMode 是 API 28+ 属性，
+         minSdk 24 的旧平台自动忽略该属性（窗口不进刘海区，行为同默认）。 -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar"
+        tools:targetApi="p">
         <!-- Show a splash screen on the activity. Automatically removed when
              the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- 刘海屏/挖孔屏适配：默认 default 模式在隐藏状态栏（沉浸全屏）时会把
+             窗口下移避开刘海区，阅读器/播放器顶部留一条黑边。shortEdges 允许
+             窗口贴边延伸进刘海区，画面铺满整屏；PiP / 分屏仍不进刘海区。 -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
     <!-- Theme applied to the Android Window as soon as the process has started.
          This theme determines the color of the Android Window while your
@@ -12,7 +19,10 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar"
+        tools:targetApi="p">
         <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- 同 LaunchTheme：沉浸全屏（阅读器/播放器）时画面延伸进刘海区。 -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>
