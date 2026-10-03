@@ -6181,7 +6181,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     if (absoluteChapterUrl == null) return;
                     switch (value) {
                       case 'webview':
-                        openInAppBrowser(context, absoluteChapterUrl);
+                        openInAppBrowser(context, absoluteChapterUrl,
+                            source: _source);
                       case 'browser':
                         openInExternalBrowser(context, absoluteChapterUrl);
                       case 'share':

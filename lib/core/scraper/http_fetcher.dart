@@ -1304,15 +1304,17 @@ class HttpFetcher {
   /// 下载文件到本地路径，支持进度回调（[onReceiveProgress] = (已接收, 总大小)）。
   ///
   /// 使用内部 Dio 实例，与 [getBytesStream] 同一网络配置（proxy、interceptor、cookie）。
-  /// 仅使用默认网络档案（[EffectiveNetworkProfile]）；需源级覆盖时调用方自行合并 headers。
+  /// [net] 为源级有效档案（null → 默认档案）；传入后经源档案的连接工厂解析
+  /// （hosts 优先 / DoH / 代理），嗅探结果下载等场景用它跟随源网络覆盖。
   Future<void> downloadFile(
     String url,
     String savePath, {
     Map<String, String>? headers,
+    EffectiveNetworkProfile? net,
     void Function(int received, int total)? onReceiveProgress,
     CancelToken? cancelToken,
   }) async {
-    await _dio.download(
+    await _dioFor(net).download(
       url,
       savePath,
       options: Options(headers: headers),
@@ -1326,12 +1328,14 @@ class HttpFetcher {
 
   /// 发送 HEAD 请求获取响应头（主要用于获取 Content-Length）。
   ///
+  /// [net] 为源级有效档案（null → 默认档案），语义同 [downloadFile]。
   /// 返回响应头映射；请求失败时抛出异常。
   Future<Map<String, List<String>>> head(
     String url, {
     Map<String, String>? headers,
+    EffectiveNetworkProfile? net,
   }) async {
-    final resp = await _dio.head<dynamic>(
+    final resp = await _dioFor(net).head<dynamic>(
       url,
       options: Options(headers: headers),
     );

@@ -5324,7 +5324,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 switch (value) {
                   case 'webview':
                     if (absoluteChapterUrl != null) {
-                      openInAppBrowser(context, absoluteChapterUrl);
+                      openInAppBrowser(context, absoluteChapterUrl,
+                          source: _source);
                     }
                   case 'browser':
                     if (absoluteChapterUrl != null) {

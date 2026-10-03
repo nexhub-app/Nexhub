@@ -25,7 +25,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../models/plugin_config.dart';
-import '../model/effective_network_profile.dart';
 import '../model/network_config.dart';
 import 'dns_resolver.dart';
 import '../network_config_service.dart';
@@ -62,11 +61,29 @@ class WebviewSourceNetwork {
   List<HostsEntry>? _hosts;
   String? _pacContent;
 
+  /// 当前持有跟随的源 id（首个 apply 的源）。
+  String? _currentSourceId;
+
   /// 打开源 WebView 前调用：若该源声明了 hosts/DoH/手动代理，则让 WebView 跟随。
   ///
   /// [source] 为 null 时直接返回（无网络覆盖可应用）。
+  ///
+  /// 叠加语义（先到先得）：已有跟随在生效时不再重建 PAC/代理——异源抢占会
+  /// 换掉共享本地代理的解析配置，打断正在使用的其它源 WebView；同源重复
+  /// apply 也无需重建（配置幂等）。仍递增引用计数保证 apply/release 严格
+  /// 配对，全部 release 后下次 apply 重新生效。
   Future<void> applyForSource(PluginConfig? source) async {
     if (source == null) return;
+    if (_refCount > 0) {
+      if (_currentSourceId != source.id) {
+        debugPrint(
+            'WebviewSourceNetwork: source ${source.id} skipped, '
+            'follow $_currentSourceId active');
+      }
+      _refCount++;
+      return;
+    }
+    _currentSourceId = source.id;
     try {
       final profile = NetworkConfigService.instance.effectiveFor(source);
     final hasCustomDns =
@@ -157,6 +174,7 @@ class WebviewSourceNetwork {
     _dns = null;
     _hosts = null;
     _pacContent = null;
+    _currentSourceId = null;
   }
 
   // ---- Windows WebView2 环境（--proxy-server 启动参数）----
@@ -307,8 +325,9 @@ class WebviewSourceNetwork {
                 defaultPort
             : defaultPort);
     try {
-      final ip = await _resolveIp(host);
-      final targetSocket = await Socket.connect(ip, port);
+      final addresses = await _resolveAddresses(host);
+      final targetSocket =
+          await _connectFirstReachable(host, port, addresses);
       // 直接 detach：detachSocket(writeHeaders:true) 会把已设的 200 状态行写给
       // 客户端。注意不能先 close() 再 detach —— 那样会抛 StateError（dart:io 已
       // 接管 socket），导致 HTTPS 隧道建立失败。
@@ -334,8 +353,9 @@ class WebviewSourceNetwork {
     final host = uri.host;
     final port = uri.port == 0 ? 80 : uri.port;
     try {
-      final ip = await _resolveIp(host);
-      final targetSocket = await Socket.connect(ip, port);
+      final addresses = await _resolveAddresses(host);
+      final targetSocket =
+          await _connectFirstReachable(host, port, addresses);
       // 重写请求行为绝对路径（去掉 scheme+host），Host 头保留原域名（SNI 等价）。
       final path = uri.path.isEmpty ? '/' : uri.path;
       final raw = StringBuffer()
@@ -358,7 +378,7 @@ class WebviewSourceNetwork {
     }
   }
 
-  Future<InternetAddress> _resolveIp(String host) async {
+  Future<List<InternetAddress>> _resolveAddresses(String host) async {
     final addresses = await DnsResolver.instance.resolve(
       host,
       _dns ?? DnsConfig(),
@@ -367,11 +387,47 @@ class WebviewSourceNetwork {
     if (addresses.isEmpty) {
       throw StateError('no address for $host');
     }
-    // 优先 IPv4（Cloudflare anycast 多为 IPv4）。
-    return addresses.firstWhere(
-      (a) => a.type == InternetAddressType.IPv4,
-      orElse: () => addresses.first,
-    );
+    // IPv4 优先（Cloudflare anycast 多为 IPv4）；DnsResolver 对 hosts 命中的
+    // 多候选只做了打乱，未做 v4/v6 分组，这里补齐次序。
+    final v4 = addresses
+        .where((a) => a.type == InternetAddressType.IPv4)
+        .toList(growable: false);
+    if (v4.isEmpty || v4.length == addresses.length) return addresses;
+    return <InternetAddress>[
+      ...v4,
+      ...addresses.where((a) => a.type != InternetAddressType.IPv4),
+    ];
+  }
+
+  /// 逐个候选地址尝试建连，直到成功；全部失败回退系统解析原域名直连。
+  ///
+  /// 与 [NetworkClientBuilder._connectFirstReachable] 同语义（hosts/DNS 常给
+  /// 出多个候选 IP，其中部分不可达，只连第一个会整体超时）。单次尝试限时
+  /// 8s：被防火墙静默丢弃的地址 TCP 会一直挂起，不限时则隧道永久无响应。
+  Future<Socket> _connectFirstReachable(
+    String host,
+    int port,
+    List<InternetAddress> addresses,
+  ) async {
+    Object? lastErr;
+    for (final addr in addresses) {
+      try {
+        return await Socket.connect(addr, port).timeout(
+              const Duration(seconds: 8),
+              onTimeout: () => throw TimeoutException('connect $addr'),
+            );
+      } on Object catch (e) {
+        lastErr = e;
+      }
+    }
+    try {
+      return await Socket.connect(host, port).timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => throw TimeoutException('connect $host'),
+          );
+    } on Object catch (e) {
+      throw lastErr ?? e;
+    }
   }
 
   void _pipe(Socket a, Socket b) {

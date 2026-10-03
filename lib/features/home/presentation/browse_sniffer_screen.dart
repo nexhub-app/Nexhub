@@ -15,11 +15,15 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:nexhub/core/models/episode.dart';
+import 'package:nexhub/core/models/plugin_config.dart';
+import 'package:nexhub/core/network/model/effective_network_profile.dart';
+import 'package:nexhub/core/network/network_config_service.dart';
+import 'package:nexhub/core/network/runtime/webview_source_network.dart';
+import 'package:nexhub/core/scraper/http_fetcher.dart';
 import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/sniffer/sniffer_bridge.dart' show SnifferBridge;
@@ -52,7 +56,11 @@ const String _kDarkModeCss = '''
 class BrowseSnifferScreen extends StatefulWidget {
   final String? initialUrl;
 
-  const BrowseSnifferScreen({super.key, this.initialUrl});
+  /// 关联源（可选）：非 null 时 WebView 与下载/探测都跟随该源的网络覆盖
+  /// （内置 hosts / DoH / 代理）；为 null 时挂当前生效环境（若有）。
+  final PluginConfig? source;
+
+  const BrowseSnifferScreen({super.key, this.initialUrl, this.source});
 
   @override
   State<BrowseSnifferScreen> createState() => _BrowseSnifferScreenState();
@@ -64,6 +72,21 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   InAppWebViewController? _controller;
   bool _loading = false;
   bool _pageLoaded = false;
+
+  /// 源级有效档案（无源 → null → 默认档案）：下载/HEAD 探测经它跟随源 hosts。
+  late final EffectiveNetworkProfile? _net = widget.source == null
+      ? null
+      : NetworkConfigService.instance.effectiveFor(widget.source);
+
+  /// WebView2 环境（Windows --proxy-server 跟随）；其余平台 / 无覆盖时为 null。
+  WebViewEnvironment? _env;
+
+  /// 网络跟随就绪前不创建 WebView（env 是创建期参数，后补无效）。
+  bool _envReady = false;
+
+  /// applyForSource 的在途 Future：dispose 时先等它完成再 release，保证引用
+  /// 计数严格配对。
+  Future<void>? _applyFuture;
 
   /// 页内沉浸式播放模式：blob/mse 串流无法在外部播放器打开时，将当前 WebView 作为播放器铺满屏幕。
   bool _inPagePlay = false;
@@ -146,6 +169,23 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
     if (widget.initialUrl != null) {
       _addressController.text = widget.initialUrl!;
     }
+    final source = widget.source;
+    if (source == null) {
+      _env = WebviewSourceNetwork.instance.activeEnvironment;
+      _envReady = true;
+    } else {
+      _applyFuture = WebviewSourceNetwork.instance
+          .applyForSource(source)
+          .then((_) async {
+        final env = WebviewSourceNetwork.instance.activeEnvironment;
+        if (mounted) {
+          setState(() {
+            _env = env;
+            _envReady = true;
+          });
+        }
+      });
+    }
     _loadHook();
   }
 
@@ -156,6 +196,17 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
     if (_engine.onUpdate == _onEngineUpdate) _engine.onUpdate = null;
     _addressController.dispose();
     _addressFocus.dispose();
+    if (widget.source != null) {
+      final apply = _applyFuture;
+      if (apply != null) {
+        // dispose 先于 apply 完成时，等 apply 落地（含引用计数自增）后再释放。
+        unawaited(apply.whenComplete(
+          () => WebviewSourceNetwork.instance.releaseForSource(),
+        ));
+      } else {
+        unawaited(WebviewSourceNetwork.instance.releaseForSource());
+      }
+    }
     super.dispose();
   }
 
@@ -241,10 +292,13 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
       final outFile = '${outDir.path}/$name';
       final headers = <String, String>{};
       if (referer != null && referer.isNotEmpty) headers['Referer'] = referer;
-      await Dio().download(
+      // 走源档案客户端：命中源内置 hosts / DoH（裸 Dio 走系统 DNS，
+      // 被污染域名的嗅探结果会下载失败）。
+      await HttpFetcher.instance.downloadFile(
         url,
         outFile,
-        options: Options(headers: headers, followRedirects: true),
+        headers: headers,
+        net: _net,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -295,24 +349,31 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
         .toList();
     if (pending.isEmpty) return;
     var active = 0;
-    final dio = Dio();
     Future<void> probeOne(SniffedMedia m) async {
       try {
         final headers = <String, String>{};
         if (m.referer != null && m.referer!.isNotEmpty) {
           headers['Referer'] = m.referer!;
         }
-        final resp = await dio.head(
+        final resp = await HttpFetcher.instance.head(
           m.url,
-          options: Options(headers: headers, followRedirects: true),
+          headers: headers,
+          net: _net,
         );
-        final len = resp.headers.value('content-length');
-        if (len != null && mounted) {
-          final bytes = int.tryParse(len);
-          if (bytes != null) {
-            _sizes[m.url] = bytes;
-            setState(() {});
+        // 响应头键大小写不保证，无关大小写取 content-length（显式循环取值，
+        // 避免闭包内赋值导致流分析无法提升非空）。
+        List<String>? lenValues;
+        for (final e in resp.entries) {
+          if (e.key.toLowerCase() == 'content-length' && e.value.isNotEmpty) {
+            lenValues = e.value;
+            break;
           }
+        }
+        final bytes =
+            lenValues == null ? null : int.tryParse(lenValues.first);
+        if (bytes != null && mounted) {
+          _sizes[m.url] = bytes;
+          setState(() {});
         }
       } catch (_) {
         // 探测失败不影响其它项（CORS/防盗链/HEAD 不支持都可能出现）。
@@ -355,8 +416,9 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool isDark = scheme.brightness == Brightness.dark;
 
-    // 钩子就绪前先占位，确保 initialUserScripts 在 WebView 创建时已就位。
-    if (_hookJs == null) {
+    // 钩子与网络跟随就绪前先占位：确保 initialUserScripts 在 WebView 创建时
+    // 已就位；webViewEnvironment 是创建期参数，创建后再挂无效。
+    if (_hookJs == null || !_envReady) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.snifferTitle)),
         body: const Center(child: CircularProgressIndicator()),
@@ -425,6 +487,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                 child: Stack(
                   children: <Widget>[
                     InAppWebView(
+                      webViewEnvironment: _env,
                       initialUrlRequest: widget.initialUrl != null
                           ? URLRequest(url: WebUri(widget.initialUrl!))
                           : null,

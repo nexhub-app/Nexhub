@@ -85,7 +85,7 @@ Future<void> addWebFavorite(
 ) async {
   final wf = source.webFavorite;
   if (wf == null) {
-    openInAppBrowser(context, source.site.baseUrl);
+    openInAppBrowser(context, source.site.baseUrl, source: source);
     return;
   }
   // 源声明了「脚本添加」（add.route）→ 交由源脚本完成（可多步请求 + 鉴权）。
@@ -105,7 +105,7 @@ Future<void> addWebFavorite(
   }
   final url = resolveAddWebFavoriteUrl(source, item);
   if (url.isEmpty) return;
-  openInAppBrowser(context, url);
+  openInAppBrowser(context, url, source: source);
 }
 
 /// 选夹添加流程：抓取收藏页解析文件夹列表 → 弹选择 sheet → POST 到源站。

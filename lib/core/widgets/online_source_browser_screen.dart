@@ -145,8 +145,9 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
                   trailing: IconButton(
                     icon: const Icon(Icons.open_in_new_rounded),
                     tooltip: l10n.openSourceWebsite,
-                    onPressed: () =>
-                        openInAppBrowser(context, source.site.baseUrl),
+                    onPressed: () => openInAppBrowser(
+                        context, source.site.baseUrl,
+                        source: source),
                   ),
                 ),
               ],

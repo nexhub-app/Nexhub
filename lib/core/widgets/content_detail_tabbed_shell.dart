@@ -437,7 +437,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         _CircleIconButton(
           tooltip: l10n.openInAppBrowser,
           icon: Icons.travel_explore_rounded,
-          onPressed: () => openInAppBrowser(context, url),
+          onPressed: () => openInAppBrowser(context, url, source: widget.source),
         ),
       if (hasUrl)
         _CircleIconButton(

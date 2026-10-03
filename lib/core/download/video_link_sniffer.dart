@@ -23,6 +23,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../models/plugin_config.dart';
 import '../models/episode.dart' show VideoLine, VideoResult;
+import '../network/runtime/webview_source_network.dart';
 import '../resolver/webview_resolver.dart'
     show WebViewExtractionRequest, WebViewHtmlRequest;
 import '../scraper/media_api_service.dart';
@@ -118,6 +119,35 @@ class VideoLinkSniffer {
     String? jsExtractor,
     Duration timeout = const Duration(seconds: 25),
   }) async {
+    // WebView 走系统网络栈，默认不读源 network 块：打开无界面 WebView 前先让
+    // 全局 WebView 跟随源网络覆盖（内置 hosts / DoH / 代理）。已有其它源的
+    // 跟随在生效时 applyForSource 不抢占（先到先得），引用计数保证配对释放。
+    await WebviewSourceNetwork.instance.applyForSource(source);
+    try {
+      return await _sniffInWebView(
+        service,
+        source,
+        episodeUrl,
+        loadUrl,
+        headers,
+        jsExtractor: jsExtractor,
+        timeout: timeout,
+      );
+    } finally {
+      await WebviewSourceNetwork.instance.releaseForSource();
+    }
+  }
+
+  /// [_resolveViaWebView] 的实际嗅探流程（须在 applyForSource 作用域内运行）。
+  static Future<SniffedVideoLink?> _sniffInWebView(
+    MediaApiService service,
+    PluginConfig source,
+    String episodeUrl,
+    String loadUrl,
+    Map<String, String>? headers, {
+    String? jsExtractor,
+    Duration timeout = const Duration(seconds: 25),
+  }) async {
     final hookJs = await _loadHookJs();
     final sniffer = _HeadlessSniffer();
     final capture = Completer<SniffedMedia?>();
@@ -131,7 +161,12 @@ class VideoLinkSniffer {
     };
 
     try {
-      await sniffer.load(loadUrl, headers, hookJs);
+      await sniffer.load(
+        loadUrl,
+        headers,
+        hookJs,
+        env: WebviewSourceNetwork.instance.activeEnvironment,
+      );
     } on Object {
       if (!capture.isCompleted) capture.complete(null);
     }
@@ -329,10 +364,12 @@ class _HeadlessSniffer {
   Future<InAppWebViewController> load(
     String url,
     Map<String, String>? headers,
-    String hookJs,
-  ) async {
+    String hookJs, {
+    WebViewEnvironment? env,
+  }) async {
     _pageLoaded = Completer<void>();
     _wv = HeadlessInAppWebView(
+      webViewEnvironment: env,
       initialUrlRequest: URLRequest(url: WebUri(url), headers: headers),
       initialUserScripts:
           UnmodifiableListView(<UserScript>[SnifferBridge.userScript(hookJs)]),

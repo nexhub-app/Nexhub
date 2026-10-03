@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../features/browser/presentation/http_browser_screen.dart';
 import '../models/episode.dart';
+import '../models/plugin_config.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 系统分享：弹出系统分享面板分享标题 + URL。
@@ -60,11 +61,14 @@ Future<void> openInExternalBrowser(
 ///
 /// 内置浏览器基于 [InAppWebView]，可同步 Cookie 回 [HttpFetcher]，
 /// 适合需要保留会话的场景（如源站登录态）。
-void openInAppBrowser(BuildContext context, String url) {
+/// [source] 为关联源（可选）：非 null 时 WebView 跟随该源的网络覆盖
+/// （内置 hosts / DoH / 代理）。
+void openInAppBrowser(BuildContext context, String url,
+    {PluginConfig? source}) {
   if (url.isEmpty || url.contains('{}')) return;
   Navigator.of(context).push(
     AppPageRoute<void>(
-      builder: (_) => HttpBrowserScreen(initialUrl: url),
+      builder: (_) => HttpBrowserScreen(initialUrl: url, source: source),
     ),
   );
 }

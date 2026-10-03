@@ -948,7 +948,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (_dismissedAnnouncements.contains(key)) return; // 用户选过「以后再不显示」
     _announcedIds.add(source.id);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showAnnouncementDialog(ann, key);
+      if (mounted) _showAnnouncementDialog(ann, key, source: source);
     });
   }
 
@@ -969,7 +969,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 源公告弹窗：展示标题 / 正文 / 更新时间 / 外链；主按钮「以后再不显示」
   /// 关闭并持久跳过该公告（除非作者发布新公告），另提供「关闭」仅本次关闭。
   Future<void> _showAnnouncementDialog(
-      AnnouncementConfig ann, String dismissKey) async {
+      AnnouncementConfig ann, String dismissKey,
+      {required PluginConfig source}) async {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     await showDialog<void>(
@@ -1002,7 +1003,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 InkWell(
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    openInAppBrowser(context, ann.url!);
+                    openInAppBrowser(context, ann.url!, source: source);
                   },
                   child: Text(
                     l10n.sourceAnnouncementView,
@@ -1145,8 +1146,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 IconButton(
                   icon: const Icon(Icons.public_rounded),
                   tooltip: l10n.openSourceWebsite,
-                  onPressed: () =>
-                      openInAppBrowser(context, _source!.site.baseUrl),
+                  onPressed: () => openInAppBrowser(
+                      context, _source!.site.baseUrl,
+                      source: _source),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
@@ -1479,6 +1481,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 onPressed: () => openInAppBrowser(
                   context,
                   _resolveWebFavoriteUrl(source, wf.url!),
+                  source: source,
                 ),
               ),
             ],

@@ -212,7 +212,8 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
         !detailUrl.contains('{}')) {
       buttons.add(
         OutlinedButton.icon(
-          onPressed: () => openInAppBrowser(context, detailUrl),
+          onPressed: () =>
+              openInAppBrowser(context, detailUrl, source: widget.source),
           icon: const Icon(Icons.travel_explore_rounded),
           label: Text(l10n.openInAppBrowser),
         ),

@@ -13,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/models/plugin_config.dart';
+import '../../../core/network/runtime/webview_source_network.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -22,18 +24,27 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 /// 内置浏览器页面。
 ///
 /// [initialUrl] 为初始加载地址（可选；为空时显示空白页等待用户输入）。
+/// [source] 为关联源（可选）：非 null 时 WebView 跟随该源的网络覆盖
+/// （内置 hosts / DoH / 代理，见 [WebviewSourceNetwork]），Windows 上挂到
+/// 带启动参数的 WebView2 环境；为 null 时若已有其它源的跟随在生效则同样挂载。
 ///
 /// 返回值：`true` 表示用户点击了「用此页完成验证」（此时 Cookie 已同步到
 /// [HttpFetcher]）；`false` / `null` 表示用户直接关闭。
 class HttpBrowserScreen extends StatefulWidget {
   final String? initialUrl;
+  final PluginConfig? source;
 
   /// 是否在「验证模式」下运行。此时一旦加载到真实（非验证挑战）页，自动把
   /// Cookie 同步回 [HttpFetcher] 并关闭返回成功，省去手动点「用此页完成验证」。
   /// 普通浏览（嗅探、复制链接等）保持 false，不受影响。
   final bool verifyMode;
 
-  const HttpBrowserScreen({super.key, this.initialUrl, this.verifyMode = false});
+  const HttpBrowserScreen({
+    super.key,
+    this.initialUrl,
+    this.source,
+    this.verifyMode = false,
+  });
 
   @override
   State<HttpBrowserScreen> createState() => _HttpBrowserScreenState();
@@ -48,6 +59,16 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   bool _loading = false;
   bool _pageLoaded = false;
   String? _currentUrl;
+
+  /// WebView2 环境（Windows --proxy-server 跟随）；其余平台 / 无覆盖时为 null。
+  WebViewEnvironment? _env;
+
+  /// 网络跟随就绪前不创建 WebView（env 是创建期参数，后补无效）。
+  bool _envReady = false;
+
+  /// applyForSource 的在途 Future：dispose 时先等它完成再 release，保证引用
+  /// 计数严格配对（apply 在 `_refCount++` 前返回时 release 会空转）。
+  Future<void>? _applyFuture;
 
   /// 加载看门狗：release 包下个别 WebView 版本可能不触发 onLoadStop，
   /// 导致 [_loading] 永久为 true（一直转圈）。超时后强制解除加载态。
@@ -80,6 +101,24 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
     if (widget.initialUrl != null) {
       _addressController.text = widget.initialUrl!;
     }
+    final source = widget.source;
+    if (source == null) {
+      // 无关联源：直接挂当前生效环境（如验证流程已开跟随），无则保持原行为。
+      _env = WebviewSourceNetwork.instance.activeEnvironment;
+      _envReady = true;
+    } else {
+      _applyFuture = WebviewSourceNetwork.instance
+          .applyForSource(source)
+          .then((_) async {
+        final env = WebviewSourceNetwork.instance.activeEnvironment;
+        if (mounted) {
+          setState(() {
+            _env = env;
+            _envReady = true;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -87,6 +126,17 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
     _loadWatchdog?.cancel();
     _addressController.dispose();
     _addressFocus.dispose();
+    if (widget.source != null) {
+      final apply = _applyFuture;
+      if (apply != null) {
+        // dispose 先于 apply 完成时，等 apply 落地（含引用计数自增）后再释放。
+        unawaited(apply.whenComplete(
+          () => WebviewSourceNetwork.instance.releaseForSource(),
+        ));
+      } else {
+        unawaited(WebviewSourceNetwork.instance.releaseForSource());
+      }
+    }
     super.dispose();
   }
 
@@ -187,7 +237,10 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   void _openSniffer() {
     Navigator.of(context).push(
       AppPageRoute<void>(
-        builder: (_) => BrowseSnifferScreen(initialUrl: _currentUrl),
+        builder: (_) => BrowseSnifferScreen(
+          initialUrl: _currentUrl,
+          source: widget.source,
+        ),
       ),
     );
   }
@@ -243,6 +296,14 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     if (!_isAvailable) {
       return _buildUnavailableScaffold(context, l10n);
+    }
+    // 网络跟随就绪前不创建 WebView：webViewEnvironment 是创建期参数，创建后
+    // 再挂无效（Windows --proxy-server 启动参数只在环境创建时生效）。
+    if (!_envReady) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.browserTitle)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     return _buildBrowserScaffold(context, l10n);
   }
@@ -449,6 +510,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
       body: Stack(
         children: <Widget>[
           InAppWebView(
+            webViewEnvironment: _env,
             initialUrlRequest: widget.initialUrl != null
                 ? URLRequest(url: WebUri(widget.initialUrl!))
                 : null,
