@@ -93,18 +93,20 @@ void main() {
       // 仅代理（manualProxy 分支形态）。
       expect(WebviewSourceNetwork.windowsBrowserArgs(proxyArg: '1.2.3.4:7890'),
           '--proxy-server=1.2.3.4:7890');
-      // 仅 hosts MAP（无代理直连形态）。
+      // 仅 hosts MAP（无代理直连形态）。值含空格必须整体加引号，否则 WebView2
+      // 命令行按空格切碎、规则全失效；EXCLUDE 与主机名之间须有空格（规则按
+      // 空格分词，EXCLUDElocalhost 是非法 token）。
       expect(
           WebviewSourceNetwork.windowsBrowserArgs(hostMaps: [
             'MAP example.com 172.64.229.154'
           ]),
-          '--host-resolver-rules=MAP example.com 172.64.229.154,EXCLUDElocalhost');
+          '--host-resolver-rules="MAP example.com 172.64.229.154,EXCLUDE localhost"');
       // 双通路并存（hosts 源形态）：代理 + resolver-rules 同串。
       final both = WebviewSourceNetwork.windowsBrowserArgs(
           proxyArg: '127.0.0.1:18975',
           hostMaps: ['MAP a.com 1.1.1.1', 'MAP b.com 2.2.2.2']);
       expect(both,
-          '--proxy-server=127.0.0.1:18975 --host-resolver-rules=MAP a.com 1.1.1.1,MAP b.com 2.2.2.2,EXCLUDElocalhost');
+          '--proxy-server=127.0.0.1:18975 --host-resolver-rules="MAP a.com 1.1.1.1,MAP b.com 2.2.2.2,EXCLUDE localhost"');
       // 确定性：同输入恒同输出（env 缓存 key 稳定的前提）。
       expect(
           WebviewSourceNetwork.windowsBrowserArgs(

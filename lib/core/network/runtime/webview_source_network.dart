@@ -112,7 +112,13 @@ class WebviewSourceNetwork {
             socks5: profile.proxy.protocol == ProxyProtocol.socks5,
           ),
         ));
-        if (env != null) _refCount++;
+        if (env != null) {
+          _refCount++;
+        } else {
+          debugPrint(
+              'WebviewSourceNetwork: WebView2 env unavailable, WebView 未跟随源代理'
+              '（后续诊断看 env create failed 行）');
+        }
       }
       return;
     }
@@ -148,7 +154,13 @@ class WebviewSourceNetwork {
         proxyArg: '127.0.0.1:$_port',
         hostMaps: hostResolverRules(profile.hosts),
       ));
-      if (env != null) _refCount++;
+      if (env != null) {
+        _refCount++;
+      } else {
+        debugPrint(
+            'WebviewSourceNetwork: WebView2 env unavailable, WebView 未跟随源 hosts'
+            '（后续诊断看 env create failed 行）');
+      }
     }
     } on Object catch (e) {
       // 网络跟随是 best-effort：任何失败都不应阻断验证 WebView 打开。
@@ -229,8 +241,12 @@ class WebviewSourceNetwork {
       parts.add('--proxy-server=$proxyArg');
     }
     if (hostMaps.isNotEmpty) {
-      // --host-resolver-rules 语法：多条规则逗号连接；EXCLUDE 兜底防泄漏。
-      parts.add('--host-resolver-rules=${hostMaps.join(',')},EXCLUDElocalhost');
+      // --host-resolver-rules 语法：多条规则逗号连接，规则内部以空格分词
+      // （MAP host ip / EXCLUDE host）。整段值含空格必须整体加引号：WebView2
+      // 把 additionalBrowserArguments 原样追加进浏览器命令行，不引号会被
+      // Chromium 按空格切碎（开关值只剩 'MAP'）→ 规则全部失效，WebView 直接
+      // 用系统 DNS 解析命中污染 IP（Windows DIRECT 兜底从未真正生效的根因）。
+      parts.add('--host-resolver-rules="${hostMaps.join(',')},EXCLUDE localhost"');
     }
     return parts.join(' ');
   }
