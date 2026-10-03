@@ -112,6 +112,7 @@ class NetworkConfigService extends ChangeNotifier {
     DnsResolver.instance.clearCache();
     HttpFetcher.instance.rebuildAll();
     notifyListeners();
+    _notifyEffectiveConfigListeners();
   }
 
   /// 源级覆盖（[SourceNetworkOverrideStore]）变更后调用：
@@ -120,6 +121,34 @@ class NetworkConfigService extends ChangeNotifier {
     DnsResolver.instance.clearCache();
     HttpFetcher.instance.rebuildAll();
     notifyListeners();
+    _notifyEffectiveConfigListeners();
+  }
+
+  /// 有效档案变更后的附加回调。
+  ///
+  /// 供「需要跟随全局 / 源级网络配置变化，但不属于本层抽象」的子系统订阅——
+  /// 目前是 `BangumiEchProxy`：三套 ECH 作用域里的**应用级**取自 [config]、
+  /// **源级**取自各源的 `network.ech`，配置一变就必须把新作用域下发给原生引擎，
+  /// 否则用户改了 ECH 开关要等下次冷启动才生效。
+  ///
+  /// 用回调而不是让本层直接引用具体实现：既避免 network 层反向依赖业务实现，
+  /// 也避免 `network_config_service` ↔ `bangumi_ech_proxy` 互相 import。
+  final List<void Function()> _effectiveConfigListeners = <void Function()>[];
+
+  /// 注册有效档案变更回调（本层不去重，幂等由调用方保证）。
+  void addEffectiveConfigListener(void Function() listener) {
+    _effectiveConfigListeners.add(listener);
+  }
+
+  void _notifyEffectiveConfigListeners() {
+    for (final listener in _effectiveConfigListeners) {
+      try {
+        listener();
+      } on Object catch (e) {
+        // 单个订阅者异常不得影响其余订阅者：配置本身已经落盘。
+        debugPrint('NetworkConfigService listener failed: $e');
+      }
+    }
   }
 
   /// 计算某源的有效档案：source==null → 全局；否则逐方面合并覆盖。

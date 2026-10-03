@@ -1,0 +1,15 @@
+# Rust build artifacts
+/target/
+
+# OpenSSL build artifacts
+/openssl/build/
+/openssl/install/
+
+# 构建期中间产物 (perl 核心源码缓存等)
+# Git for Windows 自带的 perl 是裁剪版(缺 Pod::* / ExtUtils::MakeMaker),
+# 构建脚本会下载并缓存 perl 核心源码, 把缺失模块补进 perl 自身的 site_perl
+# (不放在仓库里, 也不依赖 PERL5LIB —— MSYS 会转换该变量导致路径被劈断)。
+/.build/
+
+# macOS
+.DS_Store

@@ -53,13 +53,20 @@ class BangumiClient {
   /// 顺序化所有请求（无并发）。
   Future<void> _pending = Future<void>.value();
 
-  static Dio _buildDio() => Dio(BaseOptions(
-        baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
-        // 404（未收藏）等业务态码不抛异常，统一在 _request 内判定。
-        validateStatus: (_) => true,
-      ));
+  static Dio _buildDio() {
+    final dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      // 404（未收藏）等业务态码不抛异常，统一在 _request 内判定。
+      validateStatus: (_) => true,
+    ));
+    // 注意：不需要在此安装 findProxy。ECH 透明接管由全局
+    // `NetworkClientBuilder.proxyOverrideResolver` 承载（见 bangumi_ech_proxy.dart），
+    // 它经 main.dart 的 [HttpOverrides.global] 覆盖本客户端在内的全部 dart:io
+    // 流量。在此处另设 findProxy 反而会覆盖掉用户的代理配置。
+    return dio;
+  }
 
   /// 统一请求入口：顺序节流 + 退避重试 + 错误封装。
   Future<Response<dynamic>> _request(

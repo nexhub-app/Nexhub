@@ -209,6 +209,19 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
 
+        // Method channel: Bangumi ECH 本地代理（ECH + DoH 隧道，绕过 SNI 封锁）。
+        // Dart 侧 lib/core/services/bangumi/bangumi_ech_proxy.dart 经此通道驱动
+        // 原生 libechproxy.so（android/rust/）；ECH 只作用于 Bangumi 相关域名，
+        // 判定在 Dart 侧（bangumi_ech_proxy.dart 的 isBangumiScopedHost），原生
+        // 侧只有 TARGETS 白名单兜底。原生库缺失（其他 ABI / 未编入）时
+        // EchProxyBridge 会返回错误，Dart 侧捕获后安全降级（enable 返回 0）。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "nexhub/ech_proxy"
+        ).setMethodCallHandler { call, result ->
+            EchProxyBridge.handle(applicationContext, call, result)
+        }
+
         // Event channel for volume key events
         EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,

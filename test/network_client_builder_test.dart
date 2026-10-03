@@ -133,6 +133,101 @@ void main() {
       }
     });
   });
+
+  group('resolveProfileProxy 代理决策（纯函数）', () {
+    final uri = Uri.parse('https://example.com/path');
+
+    test('direct 恒为 DIRECT', () {
+      final resolve = NetworkClientBuilder.resolveProfileProxy(
+        const ProxyConfig(mode: ProxyMode.direct),
+      );
+      expect(resolve(uri), 'DIRECT');
+    });
+
+    test('manual http 输出 PROXY host:port', () {
+      final resolve = NetworkClientBuilder.resolveProfileProxy(
+        const ProxyConfig(
+          mode: ProxyMode.manual,
+          protocol: ProxyProtocol.http,
+          host: '127.0.0.1',
+          port: 8080,
+        ),
+      );
+      expect(resolve(uri), 'PROXY 127.0.0.1:8080');
+    });
+
+    test('manual socks5 输出 SOCKS host:port', () {
+      final resolve = NetworkClientBuilder.resolveProfileProxy(
+        const ProxyConfig(
+          mode: ProxyMode.manual,
+          protocol: ProxyProtocol.socks5,
+          host: '127.0.0.1',
+          port: 1080,
+        ),
+      );
+      expect(resolve(uri), 'SOCKS 127.0.0.1:1080');
+    });
+
+    test('manual 缺 host/port 回退 DIRECT', () {
+      final resolve = NetworkClientBuilder.resolveProfileProxy(
+        const ProxyConfig(mode: ProxyMode.manual, host: '', port: 0),
+      );
+      expect(resolve(uri), 'DIRECT');
+    });
+
+    test('system 输出非空代理指令', () {
+      final resolve = NetworkClientBuilder.resolveProfileProxy(
+        const ProxyConfig(mode: ProxyMode.system),
+      );
+      expect(resolve(uri), isA<String>());
+    });
+  });
+
+  group('composeProxyResolver 覆盖策略组合', () {
+    const manualProxy = ProxyConfig(
+      mode: ProxyMode.manual,
+      protocol: ProxyProtocol.http,
+      host: '127.0.0.1',
+      port: 8080,
+    );
+    final bangumi = Uri.parse('https://api.bgm.tv/v0/subjects/1');
+    final other = Uri.parse('https://example.com/x');
+
+    test('覆盖策略命中的域名被接管', () {
+      final composed = NetworkClientBuilder.composeProxyResolver(
+        manualProxy,
+        override: (uri) =>
+            uri.host.endsWith('bgm.tv') ? 'PROXY localhost:9999' : null,
+      );
+      expect(composed(bangumi), 'PROXY localhost:9999');
+    });
+
+    test('未被覆盖策略接管的域名仍走用户代理（严防代理被吞）', () {
+      final composed = NetworkClientBuilder.composeProxyResolver(
+        manualProxy,
+        override: (uri) =>
+            uri.host.endsWith('bgm.tv') ? 'PROXY localhost:9999' : null,
+      );
+      expect(composed(other), 'PROXY 127.0.0.1:8080');
+    });
+
+    test('无覆盖策略时纯走档案决策', () {
+      final composed =
+          NetworkClientBuilder.composeProxyResolver(manualProxy);
+      expect(composed(bangumi), 'PROXY 127.0.0.1:8080');
+      expect(composed(other), 'PROXY 127.0.0.1:8080');
+    });
+
+    test('覆盖策略对 direct 档案同样只在命中时接管', () {
+      final composed = NetworkClientBuilder.composeProxyResolver(
+        const ProxyConfig(mode: ProxyMode.direct),
+        override: (uri) =>
+            uri.host.endsWith('bgm.tv') ? 'PROXY localhost:9999' : null,
+      );
+      expect(composed(bangumi), 'PROXY localhost:9999');
+      expect(composed(other), 'DIRECT');
+    });
+  });
 }
 
 /// 测试用覆盖：像 NexHubHttpOverrides 一样把 createHttpClient 委托回

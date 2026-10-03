@@ -18,13 +18,21 @@ import 'package:nexhub/core/services/bangumi/bangumi_models.dart';
 
 /// 可编程 Dio 适配器：按路径返回预设 JSON，并记录每次请求。
 class _FakeAdapter implements HttpClientAdapter {
-  /// path → JSON body 映射（精确匹配 RequestOptions.path）。
+  /// `URL 的 path 部分` → JSON body 映射（见 [pathOf]）。
   final Map<String, Map<String, dynamic>> responses;
 
   /// 记录所有到达的请求，供断言查询参数。
   final List<RequestOptions> requests = <RequestOptions>[];
 
   _FakeAdapter(this.responses);
+
+  /// 取请求的 path 部分。
+  ///
+  /// [BangumiClient] 在 `_request` 里会把相对路径（`/v0/...`）拼成
+  /// `${apiBaseUrl}${path}` 的**绝对 URL** 再交给 Dio（镜像模式所需），
+  /// 因此 [RequestOptions.path] 是完整 URL 而非相对路径；这里统一归一到
+  /// path 部分，使夹具键可以继续写 `/v0/...`。
+  static String pathOf(String rawPath) => Uri.tryParse(rawPath)?.path ?? rawPath;
 
   @override
   Future<ResponseBody> fetch(
@@ -33,7 +41,7 @@ class _FakeAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
-    final body = responses[options.path] ?? <String, dynamic>{};
+    final body = responses[pathOf(options.path)] ?? <String, dynamic>{};
     return ResponseBody.fromString(
       jsonEncode(body),
       200,
@@ -135,7 +143,11 @@ void main() {
       expect(detail.displayName, '超电磁炮');
       expect(detail.rating.score, 8.2);
       expect(detail.tags, <String>['科幻']);
-      expect(adapter.requests.single.path, '/v0/subjects/3559');
+      final requested = adapter.requests.single;
+      // 契约：`_request` 会把相对路径拼成 `${apiBaseUrl}${path}` 的绝对 URL
+      // （镜像模式需要），Dio 因此收到完整 URL 而非相对路径。
+      expect(requested.path, startsWith('http'));
+      expect(_FakeAdapter.pathOf(requested.path), '/v0/subjects/3559');
     });
   });
 
@@ -163,6 +175,10 @@ void main() {
       final query = adapter.requests.first.queryParameters;
       expect(query['subject_type'], BangumiSubjectType.anime);
       expect(query['type'], BangumiCollectionType.doing);
+      expect(
+        _FakeAdapter.pathOf(adapter.requests.first.path),
+        '/v0/users/tester/collections',
+      );
     });
 
     test('未传 collectionType 时省略 type 查询参数', () async {
@@ -181,6 +197,10 @@ void main() {
       final query = adapter.requests.first.queryParameters;
       expect(query.containsKey('type'), isFalse);
       expect(query['subject_type'], BangumiSubjectType.anime);
+      expect(
+        _FakeAdapter.pathOf(adapter.requests.first.path),
+        '/v0/users/tester/collections',
+      );
     });
   });
 

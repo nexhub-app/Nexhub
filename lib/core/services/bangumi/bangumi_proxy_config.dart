@@ -43,11 +43,22 @@ class BangumiProxyConfig {
   /// 图片域名：替换 `lain.bgm.tv`。
   final String image;
 
+  /// ECH 本地代理开关（对应参考 `setting.echProxyEnabled`，默认关）。
+  ///
+  /// 开启后，若该应用打包了原生 ECH 代理（`nexhub/ech_proxy`），则 **Bangumi
+  /// 作用域内**的域名请求走本地代理透明接管——作用域 = Bangumi 自有域
+  /// （bgm.tv / chii.in 及其子域）**加上**本配置在镜像模式下生效的三个基址
+  /// host（[apiBaseUrl] / [nextBaseUrl] / [oauthBaseUrl] / [imageBaseUrl]）。
+  /// 其他任何流量（含公共 DoH、第三方域）一律不受影响；非 Android 或原生
+  /// 未实现时安全降级（代理无法启用），不影响其他功能。
+  final bool echEnabled;
+
   const BangumiProxyConfig({
     this.mode = BangumiProxyMode.direct,
     this.mainSite = '',
     this.api = '',
     this.image = '',
+    this.echEnabled = false,
   });
 
   factory BangumiProxyConfig.fromJson(Map<String, dynamic> json) {
@@ -61,6 +72,7 @@ class BangumiProxyConfig {
       mainSite: (json['mainSite'] as String?) ?? '',
       api: (json['api'] as String?) ?? '',
       image: (json['image'] as String?) ?? '',
+      echEnabled: (json['echEnabled'] as bool?) ?? false,
     );
   }
 
@@ -69,6 +81,7 @@ class BangumiProxyConfig {
         'mainSite': mainSite,
         'api': api,
         'image': image,
+        'echEnabled': echEnabled,
       };
 
   // ── 官方默认域名 ──

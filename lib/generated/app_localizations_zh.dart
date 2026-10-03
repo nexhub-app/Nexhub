@@ -6969,7 +6969,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get networkEchRuntimeNote =>
-      'Dart TLS 栈暂不支持 ECH，应用内直连无法使用。替代方案：① 代理模式选手动，指向支持 ECH 的本地内核（如 mihomo / sing-box 的 SOCKS5 端口）；② 开启系统安全 DNS（DoH / 私有 DNS）后，网页抓取路径由 WebView 原生栈自动启用 ECH。';
+      '应用内直连默认走 Dart TLS 栈，无法启用 ECH。开启后，请求改经应用内置的 ECH 本地代理转发，由原生 TLS 栈完成 ECH 握手；不支持 ECH 的站点会自动回落为直连，不影响正常访问。填写「ECH 配置列表」则直接使用你提供的配置；留空时由代理自动获取。';
 
   @override
   String get networkReset => '恢复默认网络设置';
@@ -7138,6 +7138,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bangumiProxySaved => '代理设置已保存';
+
+  @override
+  String get bangumiEchProxyTitle => 'ECH 代理';
+
+  @override
+  String get bangumiEchProxyHint =>
+      '开启后，仅 Bangumi 相关域名（含你在镜像模式下配置的域名）的请求由本地 ECH（加密客户端问候）代理透明接管并隐藏 SNI，其他流量不受影响。需打包了原生 ECH 代理的版本；不可用时自动降级。';
+
+  @override
+  String get bangumiEchProxyEnable => '启用 ECH 代理';
+
+  @override
+  String bangumiEchProxyRunning(int port) {
+    return '运行中（端口 $port）';
+  }
+
+  @override
+  String get bangumiEchProxyIdle => '未运行';
 
   @override
   String get bangumiDetail => '详情';

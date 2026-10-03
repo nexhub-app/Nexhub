@@ -257,10 +257,19 @@ class SniConfig {
 
 /// ECH（Encrypted Client Hello）配置。
 ///
-/// 平台限制：Dart TLS 栈（BoringSSL 封装）不暴露 ECH API 且无插件，本配置
-/// 运行时不生效。UI/持久化保留是为：(1) 源文件 network 块可声明意图；
-/// (2) 未来接入原生 TLS 后无需迁移。当前让受限站点可用的路径：
-/// 配合 SNI 免 SNI 模式、或经支持 ECH 的本地代理内核（手动代理）。
+/// **生效路径**：Dart TLS 栈（BoringSSL 封装）不暴露 ECH API，因此本配置不由
+/// Dart 侧直接使用；[enabled] 与 [echConfigList] 由 `BangumiEchProxy` 汇总进
+/// 「三套 ECH 的并集作用域」并下发给原生 `libechproxy.so`，由原生 TLS 栈
+/// （OpenSSL）完成 ECH 握手，请求经本机 ECH 代理转发。
+///
+/// - **应用级**（本类在 [NetworkConfig] 中的位置）：[enabled] 打开后接管**任意**
+///   https 域；不支持 ECH 的站点由原生侧**逐域自适应回落**（直连 / 原始 TCP 隧道），
+///   不会把正常站点搞断。
+/// - **源级**（`SourceNetworkConfig.ech`）：只接管该源 `site.baseUrl` 的 host，
+///   显式关闭则该源被排除（即使应用级 ECH 打开）。
+///
+/// [echConfigList] 非空时作为 ECHConfigList 直接下发给原生引擎（即时生效）；
+/// 留空则由引擎自行获取。原生库缺失（非 Android / 未打包进 APK）时整套自动降级。
 class EchConfig {
   final bool enabled;
   final String echConfigList;

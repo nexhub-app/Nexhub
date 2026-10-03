@@ -7125,7 +7125,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get networkEchRuntimeNote =>
-      'The Dart TLS stack does not support ECH, so in-app direct connections cannot use it. Alternatives: 1) set a manual proxy pointing at a local ECH-capable core such as mihomo or sing-box (SOCKS5); 2) with system secure DNS (DoH / Private DNS) enabled, WebView-based fetching uses ECH through the native stack.';
+      'The in-app direct path uses the Dart TLS stack, which cannot do ECH. With this enabled, requests are routed through the built-in ECH proxy and the native TLS stack performs the ECH handshake; hosts that do not support ECH fall back to a direct connection automatically, so normal access is unaffected. If you provide an ECH config list it is used as-is; when left empty the proxy obtains one automatically.';
 
   @override
   String get networkReset => 'Reset network settings';
@@ -7297,6 +7297,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bangumiProxySaved => 'Proxy settings saved';
+
+  @override
+  String get bangumiEchProxyTitle => 'ECH Proxy';
+
+  @override
+  String get bangumiEchProxyHint =>
+      'When enabled, only requests to Bangumi-related domains (including the domains you configured in mirror mode) are transparently routed through a local ECH (Encrypted Client Hello) proxy, hiding the SNI. All other traffic is unaffected. Requires a build that bundles the native ECH proxy; it falls back safely when unavailable.';
+
+  @override
+  String get bangumiEchProxyEnable => 'Enable ECH proxy';
+
+  @override
+  String bangumiEchProxyRunning(int port) {
+    return 'Running (port $port)';
+  }
+
+  @override
+  String get bangumiEchProxyIdle => 'Not running';
 
   @override
   String get bangumiDetail => 'Details';

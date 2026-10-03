@@ -13,9 +13,9 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/bangumi/bangumi_auth.dart';
+import '../../../core/services/bangumi/bangumi_ech_proxy.dart';
 import '../../../core/services/bangumi/bangumi_oauth_config.dart';
 import '../../../core/services/bangumi/bangumi_proxy_config.dart';
-import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/bangumi_collection_browser.dart';
@@ -38,12 +38,14 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   final TextEditingController _apiController = TextEditingController();
   final TextEditingController _imageController = TextEditingController();
   BangumiProxyMode _proxyMode = BangumiProxyMode.direct;
+  bool _echEnabled = false;
 
   @override
   void initState() {
     super.initState();
     final cfg = BangumiProxyConfig.instance;
     _proxyMode = cfg.mode;
+    _echEnabled = cfg.echEnabled;
     _mainSiteController.text = cfg.mainSite;
     _apiController.text = cfg.api;
     _imageController.text = cfg.image;
@@ -59,18 +61,44 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   }
 
   /// 保存代理 / 镜像设置到本地存储并同步全局实例。
+  ///
+  /// 注意：不触碰 ECH 运行时状态——ECH 开关由 [_toggleEchProxy] 自行即时生效，
+  /// 避免重复 enable 造成原生侧重复启动。
   Future<void> _saveProxy(AppLocalizations l10n) async {
     final cfg = BangumiProxyConfig(
       mode: _proxyMode,
       mainSite: _mainSiteController.text.trim(),
       api: _apiController.text.trim(),
       image: _imageController.text.trim(),
+      echEnabled: _echEnabled,
     );
     await cfg.save();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.bangumiProxySaved)),
     );
+  }
+
+  /// 切换 ECH 本地代理：立即生效 + 持久化（对应参考 `toggleEchProxy`）。
+  ///
+  /// 参考项目在开关回调里直接 enable/disable 本地代理并写回 setting，此处
+  /// 保持一致，避免「开关已开但副标题仍显示未运行」的割裂状态。
+  ///
+  /// 但**不再直接调 enable/disable**：本应用的 ECH 作用域是三套的并集（本板块、
+  /// 源级、应用级），关掉本板块这一套时若应用级还开着，引擎必须继续跑。所以统一
+  /// 走 [BangumiEchProxy.applyEchScope] 重算并集（全关时它会停掉引擎）。
+  Future<void> _toggleEchProxy(bool enabled) async {
+    setState(() => _echEnabled = enabled);
+    await BangumiProxyConfig(
+      mode: _proxyMode,
+      mainSite: _mainSiteController.text.trim(),
+      api: _apiController.text.trim(),
+      image: _imageController.text.trim(),
+      echEnabled: enabled,
+    ).save();
+    await BangumiEchProxy.instance.applyEchScope();
+    // 刷新副标题：显示真实运行状态与端口。
+    if (mounted) setState(() {});
   }
 
   Future<void> _verifyToken(AppLocalizations l10n) async {
@@ -271,6 +299,27 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
             onPressed: () => _saveProxy(l10n),
             icon: const Icon(Icons.save_rounded),
             label: Text(l10n.save),
+          ),
+          // ───── ECH 本地代理开关 ─────
+          const SizedBox(height: AppTokens.spaceXl),
+          const Divider(),
+          const SizedBox(height: AppTokens.spaceMd),
+          Text(l10n.bangumiEchProxyTitle,
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          Text(l10n.bangumiEchProxyHint, style: theme.textTheme.bodySmall),
+          const SizedBox(height: AppTokens.spaceMd),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.bangumiEchProxyEnable),
+            subtitle: Text(
+              BangumiEchProxy.instance.isEchProxyRunning()
+                  ? l10n.bangumiEchProxyRunning(
+                      BangumiEchProxy.instance.getEchProxyPort())
+                  : l10n.bangumiEchProxyIdle,
+            ),
+            value: _echEnabled,
+            onChanged: _toggleEchProxy,
           ),
           // ───── 浏览 Bangumi 收藏（登录后可用）─────
           if (auth.isLoggedIn) ...<Widget>[

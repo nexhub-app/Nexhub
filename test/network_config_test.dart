@@ -58,7 +58,11 @@ void main() {
         'proxy': <String, dynamic>{'mode': 'bogus'},
         'dns': 'not-a-map',
       });
-      expect(back.proxy.mode, ProxyMode.direct); // 未识别枚举回退默认直连
+      // 未识别枚举回退 `ProxyConfig.defaults` 的 mode。该默认值在
+      // network_config.dart:60 的构造参数上是 ProxyMode.system（跟随系统代理），
+      // 故此处与默认值同源断言，并额外钉住当前具体值，防止默认值被静默改变。
+      expect(back.proxy.mode, NetworkConfig.defaults.proxy.mode);
+      expect(back.proxy.mode, ProxyMode.system);
       expect(back.dns.mode, DnsMode.system); // 非 Map 回退默认
     });
   });

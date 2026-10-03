@@ -12,9 +12,26 @@ import '../model/network_config.dart';
 import 'dns_resolver.dart';
 import 'sni_policy.dart';
 
+/// 代理覆盖策略：返回非 null 时接管该 [Uri] 的代理决策，返回 null 则回落到
+/// 档案自身的代理配置。见 [NetworkClientBuilder.proxyOverrideResolver]。
+typedef ProxyOverrideResolver = String? Function(Uri uri);
+
 /// 从 [EffectiveNetworkProfile] 构建 [HttpClient] 的单一入口。
 class NetworkClientBuilder {
   const NetworkClientBuilder._();
+
+  /// 代理路由扩展点：可插拔的「代理覆盖策略」。
+  ///
+  /// 返回非 null 即接管本次请求的代理决策（如 Bangumi ECH 本地代理）；
+  /// 返回 null 表示不接管，回落到档案自身的代理配置。
+  ///
+  /// 实现者**必须**只对自己负责的目标域名返回非 null：对无关域名返回
+  /// `'DIRECT'` 会吞掉用户配置的代理，属明确错误用法。同一时刻只应有一个
+  /// 实现（当前由 BangumiEchProxy 在首次访问单例时注册）。
+  ///
+  /// 对应参考项目 Bangumi-master `utils/proxy/strategy.ts` 把
+  /// `ech = isEchProxyRunning()` 组合进代理策略的做法。
+  static ProxyOverrideResolver? proxyOverrideResolver;
 
   /// 构建配置好的 [HttpClient]。
   ///
@@ -29,13 +46,74 @@ class NetworkClientBuilder {
     // 保留原 HttpFetcher 的自签容忍（部分源使用非标准 SSL 配置）。
     client.badCertificateCallback = (cert, host, port) => true;
 
-    _applyProxy(client, profile.proxy, proxyPassword);
+    _applyProxy(client, profile.proxy, proxyPassword,
+        override: proxyOverrideResolver);
 
     if (profile.needsCustomConnection) {
       _applyCustomConnection(client, profile, ctx: ctx);
     }
 
     return client;
+  }
+
+  /// 把档案的代理配置解析为 `findProxy` 决策函数（纯函数，可单测）。
+  ///
+  /// 与 [buildHttpClient] 分离，是因为 `HttpClient.findProxy` 是
+  /// setter-only、无法读回断言；把决策做成纯函数后，代理语义可直接被测试。
+  static String Function(Uri) resolveProfileProxy(ProxyConfig proxy) {
+    switch (proxy.mode) {
+      case ProxyMode.direct:
+        return (_) => 'DIRECT';
+      case ProxyMode.system:
+        // 桌面基于环境变量（尽力而为），非读取 OS GUI 代理。
+        return (uri) => HttpClient.findProxyFromEnvironment(uri);
+      case ProxyMode.manual:
+        if (proxy.host.isNotEmpty && proxy.port > 0) {
+          final scheme =
+              proxy.protocol == ProxyProtocol.socks5 ? 'SOCKS' : 'PROXY';
+          final target = '$scheme ${proxy.host}:${proxy.port}';
+          return (_) => target;
+        }
+        return (_) => 'DIRECT';
+    }
+  }
+
+  /// 组合「覆盖策略 + 档案决策」为最终的 `findProxy` 决策函数（纯函数，可单测）。
+  ///
+  /// 覆盖策略优先，返回 null 时回落到档案决策——这是「覆盖策略绝不吞掉用户
+  /// 代理配置」这一硬契约的可测试落点。
+  static String Function(Uri) composeProxyResolver(
+    ProxyConfig proxy, {
+    ProxyOverrideResolver? override,
+  }) {
+    final base = resolveProfileProxy(proxy);
+    if (override == null) return base;
+    return (uri) => override(uri) ?? base(uri);
+  }
+
+  static void _applyProxy(
+    HttpClient client,
+    ProxyConfig proxy,
+    String? proxyPassword, {
+    ProxyOverrideResolver? override,
+  }) {
+    client.findProxy = composeProxyResolver(proxy, override: override);
+
+    if (proxy.mode == ProxyMode.manual &&
+        proxy.host.isNotEmpty &&
+        proxy.port > 0 &&
+        proxy.protocol == ProxyProtocol.http &&
+        proxy.username.isNotEmpty) {
+      client.addProxyCredentials(
+        proxy.host,
+        proxy.port,
+        '',
+        HttpClientBasicCredentials(
+          proxy.username,
+          proxyPassword ?? '',
+        ),
+      );
+    }
   }
 
   /// 创建一个「绕过全局 [HttpOverrides]」的裸 [HttpClient]。
@@ -49,43 +127,6 @@ class NetworkClientBuilder {
       () => HttpClient(context: ctx),
       _RawHttpOverrides(),
     );
-  }
-
-  static void _applyProxy(
-    HttpClient client,
-    ProxyConfig proxy,
-    String? proxyPassword,
-  ) {
-    switch (proxy.mode) {
-      case ProxyMode.direct:
-        client.findProxy = (_) => 'DIRECT';
-        break;
-      case ProxyMode.system:
-        // 桌面基于环境变量（尽力而为），非读取 OS GUI 代理。
-        client.findProxy = (uri) => HttpClient.findProxyFromEnvironment(uri);
-        break;
-      case ProxyMode.manual:
-        if (proxy.host.isNotEmpty && proxy.port > 0) {
-          final scheme =
-              proxy.protocol == ProxyProtocol.socks5 ? 'SOCKS' : 'PROXY';
-          client.findProxy = (_) => '$scheme ${proxy.host}:${proxy.port}';
-          if (proxy.username.isNotEmpty &&
-              proxy.protocol == ProxyProtocol.http) {
-            client.addProxyCredentials(
-              proxy.host,
-              proxy.port,
-              '',
-              HttpClientBasicCredentials(
-                proxy.username,
-                proxyPassword ?? '',
-              ),
-            );
-          }
-        } else {
-          client.findProxy = (_) => 'DIRECT';
-        }
-        break;
-    }
   }
 
   /// 自定义连接工厂：DNS/Hosts 定向 + 直连 HTTPS 的 TLS 接管。

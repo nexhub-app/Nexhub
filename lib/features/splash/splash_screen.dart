@@ -35,6 +35,7 @@ import '../../core/history/media_playback_position_manager.dart';
 import '../../core/scraper/media_api_service.dart';
 import '../../core/services/bangumi/bangumi_auth.dart';
 import '../../core/services/bangumi/bangumi_client.dart';
+import '../../core/services/bangumi/bangumi_ech_proxy.dart';
 import '../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
@@ -120,6 +121,10 @@ class _SplashScreenState extends State<SplashScreen> {
   /// （或开发期 hot restart）再次执行；重复注册会抛
   /// `HiveError: There is already a TypeAdapter for typeId 0`。
   static bool _adaptersRegistered = false;
+
+  /// 是否已把源仓库的变更监听绑到 ECH 层（同 [_adaptersRegistered] 的重复执行防护：
+  /// [SourceRepository] 每次启动都会新建，重复绑定只会让同一份快照被写两次）。
+  static bool _sourceRepoListenerBound = false;
 
   /// 主题状态。在初始化管线**之前**就恢复持久化偏好，使加载页 / 错误页
   /// 与主界面同色——否则深色偏好下加载页会先闪一段白底。
@@ -277,6 +282,24 @@ class _SplashScreenState extends State<SplashScreen> {
     // Bangumi 同步：client → auth → linkStore → syncService（详见 core/services/bangumi）。
     final bangumiClient = BangumiClient();
     await BangumiProxyConfig.load();
+    // 冷启动恢复 ECH 本地代理（对应参考 useCachedResources 的
+    // restoreEchProxy + setupEchLifecycle）。原生未实现时安全降级。
+    // 先把源列表交给 ECH 层：三套作用域里的「源级 ECH」需要扫描每个源的
+    // network.ech 声明，而生命周期观察者（resume 重建）没有 BuildContext。
+    BangumiEchProxy.instance.setSourceConfigs(sourceRepo.all);
+    // 源列表本身变化（导入 / 编辑 / 删除 / 启停源）同样会改变源级 ECH 作用域：
+    // 跟随刷新快照并重下发。`setSourceConfigs` 只换快照不下发，避免 setter 里做 I/O。
+    if (!_sourceRepoListenerBound) {
+      _sourceRepoListenerBound = true;
+      sourceRepo.addListener(() {
+        BangumiEchProxy.instance.setSourceConfigs(sourceRepo.all);
+        unawaited(BangumiEchProxy.instance.applyEchScope());
+      });
+    }
+    await BangumiEchProxy.instance.restoreEchProxy(
+      BangumiProxyConfig.instance.echEnabled,
+    );
+    BangumiEchProxy.instance.setupEchLifecycle();
     final bangumiAuth = BangumiAuth(client: bangumiClient);
     await bangumiAuth.init();
     final subjectLinkStore = SubjectLinkStore(client: bangumiClient);
